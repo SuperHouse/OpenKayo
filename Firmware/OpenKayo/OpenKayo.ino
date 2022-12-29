@@ -84,7 +84,7 @@
     - Make received message parser resilient to missed characters.
     - Figure out why machines have different microstep counts on Z axis.
 */
-#define VERSION "0.2"
+#define VERSION "0.2-20221223"
 
 
 /*--------------------------- Configuration ---------------------------------*/
@@ -99,10 +99,14 @@ uint8_t  g_homed                 = false;
 uint8_t  g_kayo_send_buffer[8]   = {0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00};
 uint8_t  g_kayo_recv_buffer[8]   = {0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00};
 uint8_t  g_expected_response[8]  = {0xAA, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x55};
-uint8_t  g_recv_buffer_position  = 0;
+//uint8_t  g_recv_buffer_position  = 0;
+float    g_x_position            = 0.0;
+float    g_y_position            = 0.0;
 float    g_nozzle_angle[4]       = {0.0, 0.0, 0.0, 0.0};
 float    g_nozzle_z_position[4]  = {0.0, 0.0, 0.0, 0.0};
 uint8_t  g_matching_response     = false;
+float    g_x_reported_position   = 0.0;
+float    g_y_reported_position   = 0.0;
 
 // g_position_message is maintained as a global, populated with the latest requested
 // position values. This allows persistence of values that haven't been requested in
@@ -116,10 +120,11 @@ uint8_t  g_position_message[8]   = {0xAA, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x
 uint64_t g_device_id;                 // Unique ID from ESP chip ID
 
 /*--------------------------- Function Signatures ---------------------------*/
-void sendMessageToKayo(uint8_t message[8], bool suppress_response = false);
+void sendMessageToKayo(uint8_t message[8], bool suppress_ok_response = false, bool exact_response_required = false);
+void decodePositionMessage(uint8_t message[]);
 void cmdResetAndHome();
-void cmdMoveXY(float x, float y, bool suppress_response = false);
-void cmdMoveZ(uint8_t n, float z, bool suppress_response = false);
+void cmdMoveXY(float x, float y, bool suppress_ok_response = false);
+void cmdMoveZ(uint8_t n, float z, bool suppress_ok_response = false);
 void cmdRotateNozzle(uint8_t n, float a);
 
 void cmdSetVacBlow(uint16_t command_code, uint8_t nozzle_id);
@@ -142,7 +147,7 @@ void cmdOpenFeeder(uint8_t feeder_id);
 void cmdCloseFeeders();
 
 void printKayoMessage(uint8_t message[]);
-void listenToKayoSerialStream(bool suppress_response = false);
+void listenToKayoSerialStream(bool suppress_ok_response = false, bool exact_match_required = false);
 void clearExpectedResponse();
 //void addMessageToQueue(uint8_t message[], uint8_t expected_response[]);
 

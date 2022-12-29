@@ -5,11 +5,15 @@ void cmdResetAndHome()
 {
   uint8_t message[8]   = {0xEE, 0xBB, 0x05, 0x00, 0x00, 0x02, 0x00, 0x55};
   g_expected_response[0] = 0xAA;
-  //g_expected_response[1] = 0xFF;
-  g_expected_response[2] = 0x05;
-  g_expected_response[5] = 0x02;
+  g_expected_response[1] = 0xFF;
+  //g_expected_response[2] = 0x05;
+  //g_expected_response[5] = 0x02;
   //g_expected_response[6] = 0x11;
+  g_expected_response[7] = 0x55;
+  Serial.print(millis());
+  Serial.println("  f: cmdResetAndHome");
   sendMessageToKayo(message);
+
   g_position_message[1] = 0x00;
   g_position_message[2] = 0x00;
   g_position_message[3] = 0x00;
@@ -23,55 +27,117 @@ void cmdResetAndHome()
    WARNING: The Kayo WILL NOT MOVE X OR Y while any nozzle is extended AT ALL!
    We have to explicitly retract all nozzles before attempting an X/Y movement.
 */
-void cmdMoveXY(float x, float y, bool suppress_response)
+
+void decodePositionMessage(uint8_t message[])
 {
+  uint16_t x_byte_0 = message[2];
+  uint16_t x_byte_1 = message[3];
+  uint16_t x_raw_pos = (x_byte_1 << 8) + x_byte_0;
+  float current_x_position = -1 * (x_raw_pos / KAYO_SCALE_FACTOR);
+
+  uint16_t y_byte_0 = message[4];
+  uint16_t y_byte_1 = message[5];
+  uint16_t y_raw_pos = (y_byte_1 << 8) + y_byte_0;
+  float current_y_position = -1 * (y_raw_pos / KAYO_SCALE_FACTOR);
+#if COMMS_DEBUGGING
+  Serial.print("Decoded position: ");
+  Serial.print(current_x_position);
+  Serial.print(",");
+  Serial.println(current_y_position);
+#endif
+  g_x_reported_position = current_x_position;
+  g_y_reported_position = current_y_position;
+}
+
+void cmdMoveXY(float x, float y, bool suppress_ok_response)
+{
+#if COMMS_DEBUGGING
+  Serial.print(millis()); Serial.print("    ");
+  Serial.println("f: cmdMoveXY()");
+#endif
   //Serial.print("Going to X: ");
   //Serial.println(x);
   //Serial.print("Going to Y: ");
   //Serial.println(y);
   if (0.0 != g_nozzle_z_position[0])
   {
+    Serial.println("============== Moving Z");
     cmdMoveZ(1, 0, true);
+    delay(200);
   }
   if (0.0 != g_nozzle_z_position[1])
   {
     cmdMoveZ(2, 0, true);
+    delay(100);
   }
   if (0.0 != g_nozzle_z_position[2])
   {
     cmdMoveZ(3, 0, true);
+    delay(100);
   }
   if (0.0 != g_nozzle_z_position[3])
   {
     cmdMoveZ(4, 0, true);
+    delay(100);
   }
 
-  //Serial.println("cmdMoveXY");
+#if COMMS_DEBUGGING
+  Serial.print(millis()); Serial.print("    ");
+  Serial.print("Pos message1: ");
+#endif
+  printKayoMessage(g_position_message);
   if (NULL != x)
   {
+    g_x_position = x;
     float kayo_x_requested = -1 * x * KAYO_SCALE_FACTOR;
     uint16_t kayo_x_dest = (int)kayo_x_requested;
-    //Serial.println(kayo_x_dest);
     g_position_message[1] = kayo_x_dest >> 8;
     g_position_message[2] = kayo_x_dest & 0xFF;
   }
   if (NULL != y)
   {
+    g_y_position = y;
     float kayo_y_requested = -1 * y * KAYO_SCALE_FACTOR;
     uint16_t kayo_y_dest = (int)kayo_y_requested;
     g_position_message[3] = kayo_y_dest >> 8;
     g_position_message[4] = kayo_y_dest & 0xFF;
   }
 
+  g_position_message[6] = 0x01;
+  //g_position_message[6] = 0x04;
+  //g_position_message[6] = 0x06;
+  // Do we need to set byte 6 for a speed value? We're currently
+  // leaving it as 0x00, but Glen's spreadsheet shows different
+  // values being sent. Glen's code does this:
+  // def Throw(self,XYpos : tuple, nozzleName : str):
+  //   self.DoToolToXY( C4d(XYpos), 1 , movetype = 'NORMAL' )
+  // def GotoXYAbsPos(self,xy,speed,movetype  ):# take lists of things to move.
+  //   b=self.km.makeXYabsMsg(xy,speed,movetype)
+  // def makeXYabsMsg(self, xy: tuple , speed: int, movetype='NORMAL'):
+  //   b[6] = (self.ABSMOVETYPES[movetype.upper()] << 4) | speed
+  // So Glen's code sets speed to 1 (byte 6 = 0x01) for "throw" operations.
+  // His spreadsheet also shows speed of 4 for most movements, and 6 for
+  // the first movement after loading a board.
+
   g_expected_response[0] = 0xAA;
-  //g_expected_response[1] = 0xA1;
+  g_expected_response[1] = 0xA1; // OR g_expected_response[1] = 0xEE; Which?
+  g_expected_response[2] = 0x00;
+  g_expected_response[3] = 0x00;
+  g_expected_response[4] = 0x00;
+  g_expected_response[5] = 0x00;
+  //g_expected_response[6] = 0x00;
   //g_expected_response[2] = g_position_message[2];
   //g_expected_response[3] = g_position_message[1];
   //g_expected_response[4] = g_position_message[4];
   //g_expected_response[5] = g_position_message[3];
-  //g_expected_response[2] = g_position_message[2];
-  //g_expected_response[3] = g_position_message[1];
-  sendMessageToKayo(g_position_message, suppress_response);
+  g_expected_response[6] = 0x00;
+  g_expected_response[7] = 0x55;
+#if COMMS_DEBUGGING
+  Serial.print(millis()); Serial.print("    ");
+  Serial.print("Pos message2: ");
+  printKayoMessage(g_position_message);
+#endif
+  sendMessageToKayo(g_position_message, suppress_ok_response, false);
 }
 
 
@@ -88,7 +154,7 @@ void cmdMoveXY(float x, float y, bool suppress_response)
    Also, we forcibly retract all nozzles before X or Y moves, because
    the Kayo will refuse to move otherwise.
 */
-void cmdMoveZ(uint8_t n, float z, bool suppress_response)
+void cmdMoveZ(uint8_t n, float z, bool suppress_ok_response)
 {
   //Serial.println("cmdMoveZ");
   if (-9999.00 == z)
@@ -125,11 +191,15 @@ void cmdMoveZ(uint8_t n, float z, bool suppress_response)
   }
 
   g_expected_response[0] = 0xAA;
-  //g_expected_response[1] = 0xA2;
-  //g_expected_response[2] = message[2];
-  //g_expected_response[3] = message[1];
-  //g_expected_response[6] = 0x01;
-  sendMessageToKayo(message, suppress_response);
+  g_expected_response[1] = 0xA2;
+  g_expected_response[2] = message[2];
+  g_expected_response[3] = message[1];
+  g_expected_response[6] = 0x01;
+  g_expected_response[7] = 0x55;
+  Serial.print(millis());
+  Serial.println("  f: cmdMoveZ()");
+  sendMessageToKayo(message, suppress_ok_response);
+  Serial.println("z sent");
 }
 
 
@@ -165,7 +235,10 @@ void cmdSendZSteps(uint8_t n, uint16_t z_microsteps)
       message[6] = 0x44;
       break;
   }
-
+  g_expected_response[0] = 0xAA;
+  g_expected_response[7] = 0x55;
+  Serial.print(millis());
+  Serial.println("  f: cmdSendZSteps");
   sendMessageToKayo(message);
 }
 
@@ -211,8 +284,8 @@ void cmdRotateNozzle(uint8_t nozzle_number, float nozzle_angle)
 {
   uint8_t message[8] = {0xDD, 0xBB, 0x00, 0x00, 0x00, 0x00, 0x00, 0x55};
 
-  float nozzle_delta = nozzle_angle - g_nozzle_angle[nozzle_number];
-  g_nozzle_angle[nozzle_number] = nozzle_angle;
+  float nozzle_delta = nozzle_angle - g_nozzle_angle[nozzle_number - 1];
+  g_nozzle_angle[nozzle_number - 1] = nozzle_angle;
 
   uint16_t kayo_a_steps = int((abs(nozzle_delta) * KAYO_ROTATION_SCALE) + 0.5);  // Convert angular degrees to microsteps
   message[2] = kayo_a_steps >> 8;
@@ -244,6 +317,9 @@ void cmdRotateNozzle(uint8_t nozzle_number, float nozzle_angle)
   g_expected_response[0] = 0xAA;
   //g_expected_response[1] = 0xBB;
   //g_expected_response[6] = message[6];
+  g_expected_response[7] = 0x55;
+  Serial.print(millis());
+  Serial.println("  f: cmdRotateNozzle");
   sendMessageToKayo(message);
 }
 
@@ -256,20 +332,42 @@ void cmdRotateNozzle(uint8_t nozzle_number, float nozzle_angle)
 */
 void cmdReportPosition()
 {
-  float x = 0.00;
-  float y = 0.00;
+  //float x = 0.00;
+  //float y = 0.00;
   //float z = 0.00;
 
-  uint16_t x_microsteps = (255 * g_position_message[1]) + g_position_message[2];
-  x = -1 * (x_microsteps / KAYO_SCALE_FACTOR);
+  //uint16_t x_microsteps = (255 * g_position_message[1]) + g_position_message[2];
+  //x = -1 * (x_microsteps / KAYO_SCALE_FACTOR);
 
-  uint16_t y_microsteps = (255 * g_position_message[3]) + g_position_message[4];
-  y = -1 * (y_microsteps / KAYO_SCALE_FACTOR);
+  //uint16_t y_microsteps = (255 * g_position_message[3]) + g_position_message[4];
+  //y = -1 * (y_microsteps / KAYO_SCALE_FACTOR);
 
-  Serial.print("ok X:");
-  Serial.print(x);
+  // Internally generated version:
+  /*
+    Serial.print("MPos:X:");
+    Serial.print(g_x_position);
+    Serial.print(" Y:");
+    Serial.print(g_y_position);
+    Serial.print(" Z:");
+    Serial.print(g_nozzle_z_position[0]);
+    Serial.print(" A:");
+    Serial.print(g_nozzle_angle[0]);
+    Serial.println();
+    Serial.println("ok");
+  */
+
+  // Reported version:
+  //Serial.print("Reported: ");
+  Serial.print("MPos:X:");
+  Serial.print(g_x_reported_position);
   Serial.print(" Y:");
-  Serial.println(y);
+  Serial.print(g_y_reported_position);
+  Serial.print(" Z:");
+  Serial.print(g_nozzle_z_position[0]);
+  Serial.print(" A:");
+  Serial.print(g_nozzle_angle[0]);
+  Serial.println();
+  //Serial.println("ok");
 }
 
 /* ******************* CONVEYOR ***************** */
@@ -279,6 +377,10 @@ void cmdReportPosition()
 void cmdResetConveyor()
 {
   uint8_t message[8] = {0xEE, 0xBB, 0x06, 0x00, 0x00, 0x02, 0x00, 0x55};
+  g_expected_response[0] = 0xAA;
+  g_expected_response[7] = 0x55;
+  Serial.print(millis());
+  Serial.println("  f: cmdResetConveyor");
   sendMessageToKayo(message);
   //memcpy(g_expected_response, message, sizeof(g_expected_response));
   //swallowDecodeUntilMessage(g_expected_response);
@@ -299,8 +401,13 @@ void cmdAdjustConveyorWidth(float width_requested)
     message[2] = width_dest >> 8;
     message[3] = width_dest & 0xFF;
 
-    sendMessageToKayo(message);
     g_expected_response[0] = 0xAA;
+    g_expected_response[7] = 0x55;
+
+    Serial.print(millis());
+    Serial.println("  f: cmdAdjustConveyorWidth");
+    sendMessageToKayo(message);
+
     //g_expected_response[1] = 0xDD;
     //memcpy(g_expected_response, message, sizeof(g_expected_response));
     //swallowDecodeUntilMessage(g_expected_response);
@@ -316,6 +423,10 @@ void cmdAdjustConveyorWidth(float width_requested)
 void cmdRunConveyor()
 {
   uint8_t message[8] = {0xEE, 0xCC, 0x01, 0x00, 0x00, 0x00, 0x00, 0x55};
+  g_expected_response[0] = 0xAA;
+  g_expected_response[7] = 0x55;
+  Serial.print(millis());
+  Serial.println("  f: cmdRunConveyor");
   sendMessageToKayo(message);
   //memcpy(g_expected_response, message, sizeof(g_expected_response));
   //swallowDecodeUntilMessage(g_expected_response);
@@ -328,8 +439,12 @@ void cmdRunConveyor()
 void cmdStopConveyor()
 {
   uint8_t message[8] = {0xEE, 0xCC, 0x00, 0x07, 0x00, 0x00, 0x00, 0x55};
+  g_expected_response[0] = 0xAA;
+  g_expected_response[7] = 0x55;
+  Serial.print(millis());
+  Serial.println("  f: cmdStopConveyor");
   sendMessageToKayo(message);
-  memcpy(g_expected_response, message, sizeof(g_expected_response));
+  //memcpy(g_expected_response, message, sizeof(g_expected_response));
   //swallowDecodeUntilMessage(g_expected_response);
 }
 
@@ -340,8 +455,12 @@ void cmdStopConveyor()
 void cmdStopPinEngageConveyor()
 {
   uint8_t message[8] = {0xEE, 0xCC, 0x00, 0x06, 0x00, 0x00, 0x00, 0x55};
+  g_expected_response[0] = 0xAA;
+  g_expected_response[7] = 0x55;
+  Serial.print(millis());
+  Serial.println("  f: cmdStopPinEngageConveyor");
   sendMessageToKayo(message);
-  memcpy(g_expected_response, message, sizeof(g_expected_response));
+  //memcpy(g_expected_response, message, sizeof(g_expected_response));
   //swallowDecodeUntilMessage(g_expected_response);
 }
 
@@ -352,8 +471,12 @@ void cmdStopPinEngageConveyor()
 void cmdClipPcbConveyor()
 {
   uint8_t message[8] = {0xEE, 0xCC, 0x00, 0x01, 0x00, 0x00, 0x00, 0x55};
+  g_expected_response[0] = 0xAA;
+  g_expected_response[7] = 0x55;
+  Serial.print(millis());
+  Serial.println("  f: cmdClipPcbConveyor");
   sendMessageToKayo(message);
-  memcpy(g_expected_response, message, sizeof(g_expected_response));
+  //memcpy(g_expected_response, message, sizeof(g_expected_response));
   //swallowDecodeUntilMessage(g_expected_response);
 }
 
@@ -367,6 +490,9 @@ void cmdExitPcbConveyor()
   uint8_t message[8] = {0xEE, 0xCC, 0x02, 0x00, 0x00, 0x02, 0x00, 0x55};
   g_expected_response[0] = 0xAA;
   g_expected_response[1] = 0xCC;
+  g_expected_response[7] = 0x55;
+  Serial.print(millis());
+  Serial.println("  f: cmdexitPcbConveyor");
   sendMessageToKayo(message);
 }
 
@@ -422,6 +548,9 @@ void cmdIngestPcbConveyor()
   uint8_t message0[] = {0xEE, 0xCC, 0x00, 0x00, 0x00, 0x00, 0x00, 0x55};
   g_expected_response[0] = 0xAA;
   g_expected_response[1] = 0xCC;
+  g_expected_response[7] = 0x55;
+  Serial.print(millis());
+  Serial.println("  f: cmdIngestPcbConveyor 1");
   sendMessageToKayo(message0);
   delay(100);
 
@@ -432,6 +561,9 @@ void cmdIngestPcbConveyor()
   g_expected_response[0] = 0xAA;
   g_expected_response[1] = message1[1];
   g_expected_response[3] = message1[3];
+  g_expected_response[7] = 0x55;
+  Serial.print(millis());
+  Serial.println("  f: cmdIngestPcbConveyor 2");
   sendMessageToKayo(message1);
   delay(100);
 
@@ -440,8 +572,11 @@ void cmdIngestPcbConveyor()
   // Recv: AA A7 00 01 00 00 00 55 <- 01 in byte 4 means PCB found
   uint8_t message9[8] = {0xEE, 0xCC, 0x00, 0x02, 0x00, 0x00, 0x00, 0x55};
   g_expected_response[0] = 0xAA;
-  g_expected_response[1] = 0xA7;
-  g_expected_response[3] = 0x01;
+  //g_expected_response[1] = 0xA7;
+  //g_expected_response[3] = 0x01;
+  g_expected_response[7] = 0x55;
+  Serial.print(millis());
+  Serial.println("  f: cmdIngestPcbConveyor 3");
   sendMessageToKayo(message9);
   // After we get the 01 (PCB present) response, wait 3 seconds:
   delay(3000); // Why this? It's in Glen's code
@@ -453,6 +588,9 @@ void cmdIngestPcbConveyor()
   g_expected_response[0] = 0xAA;
   g_expected_response[1] = message2[1];
   g_expected_response[3] = message2[3];
+  g_expected_response[7] = 0x55;
+  Serial.print(millis());
+  Serial.println("  f: cmdIngestPcbConveyor 4");
   sendMessageToKayo(message2);
   delay(100);
 
@@ -463,6 +601,9 @@ void cmdIngestPcbConveyor()
   g_expected_response[0] = 0xAA;
   g_expected_response[1] = message3[1];
   g_expected_response[3] = message3[3];
+  g_expected_response[7] = 0x55;
+  Serial.print(millis());
+  Serial.println("  f: cmdIngestPcbConveyor 5");
   sendMessageToKayo(message3);
   delay(100);
 
@@ -472,6 +613,9 @@ void cmdIngestPcbConveyor()
   uint8_t message4[] = {0xEE, 0xCC, 0x01, 0x00, 0x00, 0x00, 0x00, 0x55};
   g_expected_response[0] = 0xAA;
   g_expected_response[3] = 0x06;
+  g_expected_response[7] = 0x55;
+  Serial.print(millis());
+  Serial.println("  f: cmdIngestPcbConveyor 6");
   sendMessageToKayo(message4);
 
   // sleep(2.5)
@@ -484,6 +628,9 @@ void cmdIngestPcbConveyor()
   //uint8_t message4[] = {0xEE, 0xCC, 0x01, 0x00, 0x00, 0x00, 0x00, 0x55};
   g_expected_response[0] = 0xAA;
   g_expected_response[3] = 0x06;
+  g_expected_response[7] = 0x55;
+  Serial.print(millis());
+  Serial.println("  f: cmdIngestPcbConveyor 7");
   sendMessageToKayo(message4);
 
   // sleep(0.5)
@@ -495,6 +642,9 @@ void cmdIngestPcbConveyor()
   uint8_t message6[] = {0xEE, 0xCC, 0x00, 0x00, 0x00, 0x00, 0x00, 0x55};
   g_expected_response[0] = 0xAA;
   g_expected_response[1] = 0xCC;
+  g_expected_response[7] = 0x55;
+  Serial.print(millis());
+  Serial.println("  f: cmdIngestPcbConveyor 8");
   sendMessageToKayo(message6);
   delay(100);
 
@@ -505,6 +655,9 @@ void cmdIngestPcbConveyor()
   g_expected_response[0] = 0xAA;
   g_expected_response[1] = 0xCC;
   g_expected_response[3] = 0x07;
+  g_expected_response[7] = 0x55;
+  Serial.print(millis());
+  Serial.println("  f: cmdIngestPcbConveyor 9");
   sendMessageToKayo(message7);
   delay(100);
 
@@ -515,6 +668,9 @@ void cmdIngestPcbConveyor()
   g_expected_response[0] = 0xAA;
   g_expected_response[1] = 0xCC;
   g_expected_response[3] = 0x01;
+  g_expected_response[7] = 0x55;
+  Serial.print(millis());
+  Serial.println("  f: cmdIngestPcbConveyor 10");
   sendMessageToKayo(message8);
   delay(100);
 }
@@ -555,10 +711,15 @@ void cmdSetVacBlow(uint16_t command_code, uint8_t nozzle_id)
   }
 
   g_expected_response[0] = 0xAA;
-  //g_expected_response[1] = message[1];
-  //g_expected_response[2] = message[2];
-  //g_expected_response[1] = 0xBB;
-  //g_expected_response[6] = message[6];
+  g_expected_response[1] = message[1];
+  g_expected_response[2] = message[2];
+  g_expected_response[3] = 0x00;
+  g_expected_response[4] = 0x00;
+  g_expected_response[5] = 0x00;
+  g_expected_response[6] = message[6];
+  g_expected_response[7] = 0x55;
+  Serial.print(millis());
+  Serial.println("  f: cmdSetVacBlow");
   sendMessageToKayo(message);
 }
 
@@ -590,6 +751,9 @@ void cmdLightOn(uint8_t light, uint8_t brightness)
   g_expected_response[0] = 0xAA;
   //g_expected_response[3] = message[3];
   //g_expected_response[6] = message[6];
+  g_expected_response[7] = 0x55;
+  Serial.print(millis());
+  Serial.println("  f: cmdLightOn");
   sendMessageToKayo(message);
 }
 
@@ -604,6 +768,9 @@ void cmdLightsOff()
   g_expected_response[0] = 0xAA;
   //g_expected_response[3] = 0x01;
   //g_expected_response[6] = 0x08;
+  g_expected_response[7] = 0x55;
+  Serial.print(millis());
+  Serial.println("  f: cmdLightsOff");
   sendMessageToKayo(message);
 }
 
@@ -622,7 +789,10 @@ void cmdOpenFeeder(uint8_t feeder_id)
     message[2] = feeder_id;
 
     g_expected_response[0] = 0xAA;
+    g_expected_response[7] = 0x55;
     //g_expected_response[2] = message[2];
+    Serial.print(millis());
+    Serial.println("  f: cmdOpenFeeder");
     sendMessageToKayo(message);
   } else {
     Serial.println("ERR: No feeder ID specified");
@@ -641,6 +811,9 @@ void cmdCloseFeeders()
   uint8_t message[8] = {0xBB, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x55};
 
   g_expected_response[0] = 0xAA;
+  g_expected_response[7] = 0x55;
+  Serial.print(millis());
+  Serial.println("  f: cmdCloseFeeders");
   sendMessageToKayo(message);
 }
 

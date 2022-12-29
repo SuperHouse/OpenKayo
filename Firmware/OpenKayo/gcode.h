@@ -65,6 +65,10 @@ void processGCodeMessage()
   // Strip comments
   g_usb_input_buffer.remove(g_usb_input_buffer.indexOf(";"));
   g_usb_input_buffer.trim();
+#if COMMS_DEBUGGING
+  Serial.print("GCODE: ");
+  Serial.println(g_usb_input_buffer);
+#endif
 
   /*-- Check for G-code messages --*/
   // Extract the command, default -1 if not found
@@ -76,7 +80,7 @@ void processGCodeMessage()
       {
         valid_command_found = true;
         //Serial.println("Homing start");
-        Serial.println("ok");
+        //Serial.println("ok");
         cmdResetAndHome();
         g_homed = true;
         break;
@@ -166,7 +170,7 @@ void processGCodeMessage()
         Serial.print(" MACHINE_TYPE:Kayo-A4");
         Serial.print(" UUID:");
         Serial.println(g_device_id, HEX);
-        //Serial.println("ok");
+        Serial.println("ok");
         break;
       }
 
