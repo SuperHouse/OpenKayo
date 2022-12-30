@@ -95,7 +95,9 @@ void listenToKayoSerialStream(bool suppress_ok_response, bool exact_match_requir
       // If the message is a position, decode it
       if ((0xA1 == g_kayo_recv_buffer[1]) || (0xA8 == g_kayo_recv_buffer[1]))
       {
+#if COMMS_DEBUGGING
         Serial.println("=== Decoding position message");
+#endif
         decodePositionMessage(g_kayo_recv_buffer);
       }
 
@@ -127,10 +129,12 @@ void listenToKayoSerialStream(bool suppress_ok_response, bool exact_match_requir
       } else {
         g_matching_response = false;
         //Serial.println("ERR: Response from Kayo does not match expected value.");
+#if COMMS_DEBUGGING
         Serial.print("Expected: ");
         printKayoMessage(g_expected_response);
         Serial.print("Received: ");
         printKayoMessage(g_kayo_recv_buffer);
+#endif
       }
     }
   }
