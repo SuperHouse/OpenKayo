@@ -9,13 +9,13 @@ firmware.
 The hardware portion of the project can minimally be built with an
 ESP32-based dev board such as a Wemos D1 Mini and some cables.
 
-A dedicated hardware design is also included, which provides additional
-features such as a CAN bus interface to integrate with other devices
-on the production line.
+A dedicated hardware design is also being developed, which will provide
+additional features such as a CAN bus interface to integrate with other
+devices on the production line.
 
 More information is available at:
 
-  https://www.superhouse.tv/
+  https://www.superhouse.tv/openkayo
 
 
 Hardware
@@ -29,15 +29,13 @@ The "Firmware" directory contains example firmware as an Arduino
 project.
 
 
-Enclosure
----------
-The "Enclosure" directory contains STLs for a case that can be
-3D-printed.
-
-
 Credits
 -------
  * Jonathan Oxer <jon@oxer.com.au>
+
+Heavily inspired by Glen English's Python-based UI for the Kayo, in
+particular his work decoding the message format used by the factory
+software.
 
 
 License
