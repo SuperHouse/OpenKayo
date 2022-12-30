@@ -54,14 +54,13 @@ void cmdMoveXY(float x, float y, bool suppress_ok_response)
 #if COMMS_DEBUGGING
   Serial.print(millis()); Serial.print("    ");
   Serial.println("f: cmdMoveXY()");
+  Serial.print("Going to X: ");
+  Serial.println(x);
+  Serial.print("Going to Y: ");
+  Serial.println(y);
 #endif
-  //Serial.print("Going to X: ");
-  //Serial.println(x);
-  //Serial.print("Going to Y: ");
-  //Serial.println(y);
   if (0.0 != g_nozzle_z_position[0])
   {
-    Serial.println("============== Moving Z");
     cmdMoveZ(1, 0, true);
     delay(200);
   }
@@ -154,37 +153,47 @@ void cmdMoveXY(float x, float y, bool suppress_ok_response)
    Also, we forcibly retract all nozzles before X or Y moves, because
    the Kayo will refuse to move otherwise.
 */
-void cmdMoveZ(uint8_t n, float z, bool suppress_ok_response)
+void cmdMoveZ(uint8_t nozzle, float z, bool suppress_ok_response)
 {
-  //Serial.println("cmdMoveZ");
+  Serial.print(millis());
+  Serial.println("  f: cmdMoveZ()");
+
   if (-9999.00 == z)
   {
     return;
   }
-  //Serial.print("Going to Z: ");
-  //Serial.println(z);
 
   uint16_t z_microsteps = KAYO_N1_Z_STEP_BASE + (abs(z) * KAYO_Z_STEPS_PER_MM);
 
   uint8_t message[8]  = {0xCC, 0x00, 0x00, 0x00, 0x00, 0x00, 0x04, 0x55};
   message[1] = z_microsteps >> 8;
   message[2] = z_microsteps & 0xFF;
+  if(0 == z)
+  {
+    Serial.println("Special-casing zero position");
+    message[1] = 0x00;
+    message[2] = 0x00;
+  }
 
-  switch (n)
+  switch (nozzle)
   {
     case 1:
       g_nozzle_z_position[0] = z;
+      g_nozzle_z_position[1] = 0.0;  // Nozzles 1 and 2 are ganged
       message[6] = 0x14;
       break;
     case 2:
+      g_nozzle_z_position[0] = 0.0;  // Nozzles 1 and 2 are ganged
       g_nozzle_z_position[1] = z;
       message[6] = 0x24;
       break;
     case 3:
       g_nozzle_z_position[2] = z;
+      g_nozzle_z_position[3] = 0.0;  // Nozzles 3 and 4 are ganged
       message[6] = 0x34;
       break;
     case 4:
+      g_nozzle_z_position[2] = 0.0;  // Nozzles 3 and 4 are ganged
       g_nozzle_z_position[3] = z;
       message[6] = 0x44;
       break;
@@ -194,10 +203,9 @@ void cmdMoveZ(uint8_t n, float z, bool suppress_ok_response)
   g_expected_response[1] = 0xA2;
   g_expected_response[2] = message[2];
   g_expected_response[3] = message[1];
-  g_expected_response[6] = 0x01;
+  g_expected_response[6] = nozzle;
   g_expected_response[7] = 0x55;
-  Serial.print(millis());
-  Serial.println("  f: cmdMoveZ()");
+
   sendMessageToKayo(message, suppress_ok_response);
   Serial.println("z sent");
 }
@@ -207,7 +215,7 @@ void cmdMoveZ(uint8_t n, float z, bool suppress_ok_response)
   Diagnostic function to send a specific number of microsteps to a
   nozzle Z axis stepper.
 */
-void cmdSendZSteps(uint8_t n, uint16_t z_microsteps)
+void cmdSendZSteps(uint8_t nozzle, uint16_t z_microsteps)
 {
   if (-9999 == z_microsteps)
   {
@@ -220,7 +228,7 @@ void cmdSendZSteps(uint8_t n, uint16_t z_microsteps)
   message[1] = z_microsteps >> 8;
   message[2] = z_microsteps & 0xFF;
 
-  switch (n)
+  switch (nozzle)
   {
     case 1:
       message[6] = 0x14;
@@ -362,10 +370,22 @@ void cmdReportPosition()
   Serial.print(g_x_reported_position);
   Serial.print(" Y:");
   Serial.print(g_y_reported_position);
-  Serial.print(" Z:");
+  Serial.print(" I:");
   Serial.print(g_nozzle_z_position[0]);
+  Serial.print(" J:");
+  Serial.print(g_nozzle_z_position[1]);
+  Serial.print(" K:");
+  Serial.print(g_nozzle_z_position[2]);
+  Serial.print(" L:");
+  Serial.print(g_nozzle_z_position[3]);
   Serial.print(" A:");
   Serial.print(g_nozzle_angle[0]);
+  Serial.print(" B:");
+  Serial.print(g_nozzle_angle[1]);
+  Serial.print(" C:");
+  Serial.print(g_nozzle_angle[2]);
+  Serial.print(" D:");
+  Serial.print(g_nozzle_angle[3]);
   Serial.println();
   //Serial.println("ok");
 }
@@ -794,6 +814,9 @@ void cmdOpenFeeder(uint8_t feeder_id)
     Serial.print(millis());
     Serial.println("  f: cmdOpenFeeder");
     sendMessageToKayo(message);
+    Serial.println("Delay to allow feeder to open");
+    delay(200);
+    Serial.println("done");
   } else {
     Serial.println("ERR: No feeder ID specified");
   }
@@ -815,6 +838,9 @@ void cmdCloseFeeders()
   Serial.print(millis());
   Serial.println("  f: cmdCloseFeeders");
   sendMessageToKayo(message);
+  Serial.println("Delaying to allow feeder to close");
+  delay(200);
+  Serial.println("Done");
 }
 
 /*  **************** OBSOLETE ************* */

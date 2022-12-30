@@ -10,7 +10,7 @@
   === Basic movement ===
   "G28"             Reset and home
   "G0 X-23.4 Y-18"  Move X & Y to the defined absolute position
-  "G0 Z-8.9"        Move nozzle 1 Z to the defined absolute position
+  "G0 I-8.9"        Move nozzle 1 vertically      (I=1, J=2, K=3, L=4)
   "G0 A48"          Rotate nozzle 1 to 48 degrees (A=1, B=2, C=3, D=4)
 
   === Vac / Blow ===
@@ -84,7 +84,7 @@
     - Make received message parser resilient to missed characters.
     - Figure out why machines have different microstep counts on Z axis.
 */
-#define VERSION "0.2-20221223"
+#define VERSION "0.2-20221229"
 
 
 /*--------------------------- Configuration ---------------------------------*/

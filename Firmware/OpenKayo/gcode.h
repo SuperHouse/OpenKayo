@@ -100,10 +100,14 @@ void processGCodeMessage()
 
         float requested_x = parseGCodeParameter('X', NULL);
         float requested_y = parseGCodeParameter('Y', NULL);
-        float requested_z = parseGCodeParameter('Z', -9999);
+        float requested_i = parseGCodeParameter('I', -9999);  // Nozzle 1 Z axis
+        float requested_j = parseGCodeParameter('J', -9999);  // Nozzle 2 Z axis
+        float requested_k = parseGCodeParameter('K', -9999);  // Nozzle 3 Z axis
+        float requested_l = parseGCodeParameter('L', -9999);  // Nozzle 4 Z axis
 
         if (requested_x || requested_y) {
-          if (-9999 != requested_z) // Check if Z is also being set
+          // Check if Z is also being set:
+          if (-9999 != requested_i || -9999 != requested_j || -9999 != requested_k || -9999 != requested_l)
           {
             cmdMoveXY(requested_x, requested_y, true);  // Suppress "ok" response
           } else {
@@ -111,17 +115,23 @@ void processGCodeMessage()
           }
         }
 
-        // Currently only a single Z axis is defined, assigned to the first
-        // nozzle. This needs to be changed to allow 4 x Z axes. Also has a
-        // bug that setting to position 0 doesn't work.
-        if (-9999 != requested_z) {
-          cmdMoveZ(1, requested_z);
+        // Move any Z axis that's part of the request
+        if (-9999 != requested_i) {
+          cmdMoveZ(1, requested_i);
+        }
+        if (-9999 != requested_j) {
+          cmdMoveZ(2, requested_j);
+        }
+        if (-9999 != requested_k) {
+          cmdMoveZ(3, requested_k);
+        }
+        if (-9999 != requested_l) {
+          cmdMoveZ(4, requested_l);
         }
 
+        // Move any rotation axis that's part of the request
         float requested_a = parseGCodeParameter('A', -9999);
         if (-9999 != requested_a) {
-          //Serial.print("A:");
-          //Serial.println(requested_a);
           cmdRotateNozzle(1, requested_a);
         }
         float requested_b = parseGCodeParameter('B', -9999);
