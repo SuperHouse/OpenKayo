@@ -105,9 +105,9 @@ void cmdMoveXY(float x, float y, bool suppress_ok_response)
   }
 
   //g_position_message[6] = 0x01;
-  //g_position_message[6] = 0x04;
+  g_position_message[6] = 0x04;
   //g_position_message[6] = 0x06;
-  g_position_message[6] = 0x07;
+  //g_position_message[6] = 0x07;  // Crazy warp speed. Can make parts move on the nozzle tip.
   // Do we need to set byte 6 for a speed value? We're currently
   // leaving it as 0x00, but Glen's spreadsheet shows different
   // values being sent. Glen's code does this:
@@ -170,7 +170,7 @@ void cmdMoveZ(uint8_t nozzle, float z, bool suppress_ok_response)
 
   uint16_t z_microsteps = KAYO_N1_Z_STEP_BASE + (abs(z) * KAYO_Z_STEPS_PER_MM);
 
-  uint8_t message[8]  = {0xCC, 0x00, 0x00, 0x00, 0x00, 0x00, 0x04, 0x55};
+  uint8_t message[8]  = {0xCC, 0x00, 0x00, 0x00, 0x00, 0x00, 0x04, 0x55};  // Byte 6 sets speed to 4
   message[1] = z_microsteps >> 8;
   message[2] = z_microsteps & 0xFF;
   if (0 == z)

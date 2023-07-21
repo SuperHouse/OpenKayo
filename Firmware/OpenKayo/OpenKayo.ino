@@ -84,7 +84,7 @@
     - Make received message parser resilient to missed characters.
     - Figure out why machines have different microstep counts on Z axis.
 */
-#define VERSION "0.2-20221229"
+#define VERSION "0.3-20230721"
 
 
 /*--------------------------- Configuration ---------------------------------*/
