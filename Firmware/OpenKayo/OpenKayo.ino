@@ -145,7 +145,7 @@ void cmdLightsOff();
 
 void cmdReportPosition();
 
-void cmdOpenFeeder(uint8_t feeder_id, uint8_t feeder_distance);
+void cmdOpenFeeder(uint8_t feeder_id);
 void cmdCloseFeeders();
 
 void printKayoMessage(uint8_t message[]);

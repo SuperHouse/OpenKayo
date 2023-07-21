@@ -288,7 +288,7 @@ void processGCodeMessage()
         valid_command_found = true;
         uint8_t feeder_id = parseGCodeParameter('N', NULL);
         uint8_t feeder_distance = parseGCodeParameter('S', 4);
-        cmdOpenFeeder(feeder_id, feeder_distance);
+        cmdOpenFeeder(feeder_id);
         break;
       }
 

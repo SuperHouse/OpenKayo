@@ -843,7 +843,7 @@ void cmdLightsOff()
 /*
 
 */
-void cmdOpenFeeder(uint8_t feeder_id, uint8_t feeder_distance)
+void cmdOpenFeeder(uint8_t feeder_id)
 {
   if (NULL != feeder_id)
   {
@@ -864,17 +864,6 @@ void cmdOpenFeeder(uint8_t feeder_id, uint8_t feeder_distance)
     Serial.println("Delay to allow feeder to open");
 #endif
     //delay(200);
-
-    // If we have to feed 8mm, close and advance the feeder again
-    if (8 == feeder_distance)
-    {
-      cmdCloseFeeders();
-      uint8_t message[8] = {0xBB, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x55};
-      message[2] = feeder_id;
-      g_expected_response[0] = 0xAA;
-      g_expected_response[7] = 0x55;
-      sendMessageToKayo(message);
-    }
   } else {
     Serial.println("ERR: No feeder ID specified");
   }
