@@ -64,22 +64,22 @@ void cmdMoveXY(float x, float y, bool suppress_ok_response)
   if (0.0 != g_nozzle_z_position[0])
   {
     cmdMoveZ(1, 0, true);
-    delay(200);
+    //delay(200);
   }
   if (0.0 != g_nozzle_z_position[1])
   {
     cmdMoveZ(2, 0, true);
-    delay(100);
+    //delay(100);
   }
   if (0.0 != g_nozzle_z_position[2])
   {
     cmdMoveZ(3, 0, true);
-    delay(100);
+    //delay(100);
   }
   if (0.0 != g_nozzle_z_position[3])
   {
     cmdMoveZ(4, 0, true);
-    delay(100);
+    //delay(100);
   }
 
 #if COMMS_DEBUGGING
@@ -104,9 +104,10 @@ void cmdMoveXY(float x, float y, bool suppress_ok_response)
     g_position_message[4] = kayo_y_dest & 0xFF;
   }
 
-  g_position_message[6] = 0x01;
+  //g_position_message[6] = 0x01;
   //g_position_message[6] = 0x04;
   //g_position_message[6] = 0x06;
+  g_position_message[6] = 0x07;
   // Do we need to set byte 6 for a speed value? We're currently
   // leaving it as 0x00, but Glen's spreadsheet shows different
   // values being sent. Glen's code does this:
@@ -172,7 +173,7 @@ void cmdMoveZ(uint8_t nozzle, float z, bool suppress_ok_response)
   uint8_t message[8]  = {0xCC, 0x00, 0x00, 0x00, 0x00, 0x00, 0x04, 0x55};
   message[1] = z_microsteps >> 8;
   message[2] = z_microsteps & 0xFF;
-  if(0 == z)
+  if (0 == z)
   {
 #if COMMS_DEBUGGING
     Serial.println("Special-casing zero position");
@@ -752,6 +753,14 @@ void cmdSetVacBlow(uint16_t command_code, uint8_t nozzle_id)
     }
   }
 
+  // Open suppliment valve if we're going to blow off a part. Do this before
+  // opening the valve for the specific nozzle.
+  if (2 == command_code || 4 == command_code) // We want to blow off a part
+  {
+    openSupplimentValve();
+    delay(25); // Give the valve time to actuate.
+  }
+
   g_expected_response[0] = 0xAA;
   g_expected_response[1] = message[1];
   g_expected_response[2] = message[2];
@@ -765,6 +774,13 @@ void cmdSetVacBlow(uint16_t command_code, uint8_t nozzle_id)
   Serial.println("  f: cmdSetVacBlow");
 #endif
   sendMessageToKayo(message);
+
+  // Close suppliment valve if we no longer want to blow off a part. Do this before
+  // closing the valve for a specific nozzle.
+  if (3 == command_code || 5 == command_code) // We no longer want to blow off a part
+  {
+    closeSupplimentValve();
+  }
 }
 
 
@@ -827,7 +843,7 @@ void cmdLightsOff()
 /*
 
 */
-void cmdOpenFeeder(uint8_t feeder_id)
+void cmdOpenFeeder(uint8_t feeder_id, uint8_t feeder_distance)
 {
   if (NULL != feeder_id)
   {
@@ -847,7 +863,18 @@ void cmdOpenFeeder(uint8_t feeder_id)
 #if COMMS_DEBUGGING
     Serial.println("Delay to allow feeder to open");
 #endif
-    delay(200);
+    //delay(200);
+
+    // If we have to feed 8mm, close and advance the feeder again
+    if (8 == feeder_distance)
+    {
+      cmdCloseFeeders();
+      uint8_t message[8] = {0xBB, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x55};
+      message[2] = feeder_id;
+      g_expected_response[0] = 0xAA;
+      g_expected_response[7] = 0x55;
+      sendMessageToKayo(message);
+    }
   } else {
     Serial.println("ERR: No feeder ID specified");
   }
@@ -874,7 +901,46 @@ void cmdCloseFeeders()
 #if COMMS_DEBUGGING
   Serial.println("Delaying to allow feeder to close");
 #endif
-  delay(200);
+  //delay(200);
+}
+
+
+/* Open the valve that allows blowoff */
+void openSupplimentValve()
+{
+  uint8_t message[8] = {0xEE, 0xCC, 0x00, 0x08, 0x00, 0x00, 0x00, 0x55};
+  g_expected_response[0] = 0xAA;
+  g_expected_response[1] = 0xCC;
+  g_expected_response[2] = 0x00;
+  g_expected_response[3] = 0x08;
+  g_expected_response[4] = 0x00;
+  g_expected_response[5] = 0x00;
+  g_expected_response[6] = 0x00;
+  g_expected_response[7] = 0x55;
+#if COMMS_DEBUGGING
+  Serial.print(millis());
+  Serial.println("  f: openSupplimentValve");
+#endif
+  sendMessageToKayo(message);
+}
+
+/* Close the valve that allows blowoff */
+void closeSupplimentValve()
+{
+  uint8_t message[8] = {0xEE, 0xCC, 0x00, 0x09, 0x00, 0x00, 0x00, 0x55};
+  g_expected_response[0] = 0xAA;
+  g_expected_response[1] = 0xCC;
+  g_expected_response[2] = 0x00;
+  g_expected_response[3] = 0x09;
+  g_expected_response[4] = 0x00;
+  g_expected_response[5] = 0x00;
+  g_expected_response[6] = 0x00;
+  g_expected_response[7] = 0x55;
+#if COMMS_DEBUGGING
+  Serial.print(millis());
+  Serial.println("  f: closeSupplimentValve");
+#endif
+  sendMessageToKayo(message);
 }
 
 /*  **************** OBSOLETE ************* */

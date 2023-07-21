@@ -11,10 +11,10 @@ String g_kayo_input_buffer = "";
 // do a range test later in the case statement:
 #define MCODE_CLOSE_VAC_OPEN_BLOW  2   // "M2 N2"     Close vac and open blow on nozzle 2
 #define MCODE_CLOSE_VAC_BLOW_ALL   3   // "M3"        Close vac and blow on all nozzles
-#define MCODE_OPEN_BLOW            4   // "M4 N2"     Open vac on nozzle 2
-#define MCODE_CLOSE_BLOW           5   // "M5 N1"     Close vac on nozzle 1
-#define MCODE_OPEN_VAC             6   // "M6 N3"     Open blow on nozzle 3
-#define MCODE_CLOSE_VAC            7   // "M7 N3"     Close blow on nozzle 3
+#define MCODE_OPEN_BLOW            4   // "M4 N2"     Open blow on nozzle 2
+#define MCODE_CLOSE_BLOW           5   // "M5 N1"     Close blow on nozzle 1
+#define MCODE_OPEN_VAC             6   // "M6 N3"     Open vac on nozzle 3
+#define MCODE_CLOSE_VAC            7   // "M7 N3"     Close vac on nozzle 3
 
 #define MCODE_RESET_CONV          20   // "M20"       Reset conveyor
 #define MCODE_ADJUST_CONV         21   // "M21 N93.4" Adjust conveyor to 93.4mm width + margin
@@ -33,7 +33,7 @@ String g_kayo_input_buffer = "";
 #define MCODE_REPORT_POSITION    114   // "M114"      Reports current position
 #define MCODE_DISCOVER_FIRMWARE  115   // "M115"      Responds with firmware name and version
 
-#define MCODE_OPEN_FEEDER        600   // "M600 N12"  Open feeder 12
+#define MCODE_OPEN_FEEDER        600   // "M600 N12 S4" Open feeder #12 4mm (1 increment) or "M600 N12 S8" for 8mm (2 increments)
 #define MCODE_CLOSE_FEEDER       601   // "M601"      Close feeder (no need to specify)
 
 /*
@@ -287,7 +287,8 @@ void processGCodeMessage()
       {
         valid_command_found = true;
         uint8_t feeder_id = parseGCodeParameter('N', NULL);
-        cmdOpenFeeder(feeder_id);
+        uint8_t feeder_distance = parseGCodeParameter('S', 4);
+        cmdOpenFeeder(feeder_id, feeder_distance);
         break;
       }
 
