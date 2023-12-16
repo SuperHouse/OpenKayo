@@ -179,6 +179,7 @@ void setup()
   Serial.println(g_device_id, HEX);
 
   if (ENABLE_KAYO) {
+    //Serial2.begin(KAYO_BAUD_RATE, SERIAL_8N1, KAYO_TX_PIN, KAYO_RX_PIN); // <-- Rack32
     Serial2.begin(KAYO_BAUD_RATE, SERIAL_8N1, KAYO_RX_PIN, KAYO_TX_PIN);
   }
 

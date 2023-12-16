@@ -4,7 +4,7 @@
 #define  COMMS_DEBUGGING   true   // Report debug messages relating to comms with the Kayo
 
 /* CAN bus */
-#define  CAN_BUS_SPEED            500E3  // 500kbps
+#define  CAN_BUS_SPEED            250E3  // 250kbps
 
 /* Serial */
 #define  SERIAL_BAUD_RATE        115200  // Speed for USB serial console
@@ -32,13 +32,16 @@
 */
 /* ----------------- Hardware-specific config ---------------------- */
 /* Serial */
-#define  KAYO_RX_PIN            16
-#define  KAYO_TX_PIN            17
+//#define  KAYO_RX_PIN            16
+//#define  KAYO_TX_PIN            17
+//
+///* I2C */
+#define  I2C_SDA_PIN               5
+#define  I2C_SCL_PIN               4
 
-/* I2C */
-#define  I2C_SDA_PIN            18
-#define  I2C_SCL_PIN            19
+///* CAN bus */
+#define  CAN_RX_PIN               17
+#define  CAN_TX_PIN               16
 
-/* CAN bus */
-#define  CAN_RX_PIN              4
-#define  CAN_TX_PIN              5
+#define  KAYO_RX_PIN               2 // 43
+#define  KAYO_TX_PIN               1 // 44

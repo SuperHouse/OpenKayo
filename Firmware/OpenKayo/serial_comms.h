@@ -38,14 +38,18 @@ void sendMessageToKayo(uint8_t message[8], bool suppress_ok_response, bool exact
 
   if (ENABLE_KAYO)
   {
-    Serial2.write(message[0]);
-    Serial2.write(message[1]);
-    Serial2.write(message[2]);
-    Serial2.write(message[3]);
-    Serial2.write(message[4]);
-    Serial2.write(message[5]);
-    Serial2.write(message[6]);
-    Serial2.write(message[7]);
+    for (uint8_t i = 0; i < 7; i++)
+    {
+      Serial2.write(message[i]);
+    }
+    //    Serial2.write(message[0]);
+    //    Serial2.write(message[1]);
+    //    Serial2.write(message[2]);
+    //    Serial2.write(message[3]);
+    //    Serial2.write(message[4]);
+    //    Serial2.write(message[5]);
+    //    Serial2.write(message[6]);
+    //    Serial2.write(message[7]);
 
     g_matching_response = false;
     delay(COMMAND_DELAY);
