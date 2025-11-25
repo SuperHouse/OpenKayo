@@ -68,7 +68,7 @@
   Then go to Tools -> Board -> Boards Manager..., update, and add "esp32 by Espressif Systems"
 
   Arduino IDE settings under "Tools":
-    - Board:            ESP32 Dev Module
+    - Board:            ESP32-S3 Dev Module
     - Upload speed:     115200bps
     - CPU Speed:        240MHz
     - Flash Frequency:  40MHz
@@ -92,7 +92,8 @@
 #include "config.h"
 
 /*--------------------------- Libraries -------------------------------------*/
-
+#include "driver/twai.h"                      // For CAN bus
+#include "Wire.h"
 
 /*--------------------------- Global Variables ------------------------------*/
 uint8_t  g_homed                 = false;
@@ -119,6 +120,12 @@ uint8_t  g_position_message[8]   = {0xAA, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x
 // General
 uint64_t g_device_id;                 // Unique ID from ESP chip ID
 
+// CAN bus
+uint16_t g_can_source_address    = J1939_SOURCE_ADDRESS; // Set statically
+uint32_t g_last_can_rx_time      = 0;      // ms when last message was received
+uint32_t g_last_can_tx_time      = 0;      // ms when last message was sent
+
+
 /*--------------------------- Function Signatures ---------------------------*/
 void sendMessageToKayo(uint8_t message[8], bool suppress_ok_response = false, bool exact_response_required = false);
 void decodePositionMessage(uint8_t message[]);
@@ -138,6 +145,7 @@ void cmdStopConveyor();
 void cmdStopPinEngageConveyor();
 void cmdClipPcbConveyor();
 void cmdExitPcbConveyor();
+void cmdIngestPcbManual();
 void cmdIngestPcbConveyor();
 
 void cmdLightOn(uint8_t light, uint8_t brightness);
@@ -155,6 +163,9 @@ void clearExpectedResponse();
 
 void cmdSendZSteps(uint8_t n, uint16_t z_microsteps);
 
+void sendConveyorWidthToCAN(uint16_t requested_width);
+void sendHomeToCAN();
+
 /*--------------------------- Instantiate Global Objects --------------------*/
 
 
@@ -162,6 +173,7 @@ void cmdSendZSteps(uint8_t n, uint16_t z_microsteps);
 /* Resources */
 #include "gcode.h"
 #include "serial_comms.h"
+#include "can_comms.h"
 #include "machine_actions.h"
 
 /*
@@ -169,7 +181,12 @@ void cmdSendZSteps(uint8_t n, uint16_t z_microsteps);
 */
 void setup()
 {
+  Wire.begin(I2C_SDA_PIN, I2C_SCL_PIN);
   Serial.begin(SERIAL_BAUD_RATE);
+  while (!Serial)
+  {
+    // nothing
+  }
   Serial.print("OpenKayo GCode adapter v");
   Serial.println(VERSION);
 
@@ -184,6 +201,32 @@ void setup()
   }
 
   g_usb_input_buffer.reserve(MAX_USB_INPUT);
+
+  /* Set up the CAN interface */
+  //  if (ESP.getChipRevision() >= 2)
+  //  {
+  //    if (!CAN.begin(CAN_BUS_SPEED * 2))
+  //    {
+  //      Serial.println("CAN failed!");
+  //    } else {
+  //      Serial.println("CAN initialised");
+  //    }
+  //  } else {
+  //    if (!CAN.begin(CAN_BUS_SPEED))
+  //    {
+  //      Serial.println("CAN failed!");
+  //    } else {
+  //      Serial.println("CAN initialised");
+  //    }
+  //  }
+  if (ENABLE_CAN)
+  {
+    twai_general_config_t g_config = TWAI_GENERAL_CONFIG_DEFAULT((gpio_num_t)CAN_TX_PIN, (gpio_num_t)CAN_RX_PIN, TWAI_MODE_NORMAL);  // TWAI_MODE_NORMAL, TWAI_MODE_NO_ACK or TWAI_MODE_LISTEN_ONLY
+    twai_timing_config_t t_config  = TWAI_TIMING_CONFIG_250KBITS();
+    twai_filter_config_t f_config  = TWAI_FILTER_CONFIG_ACCEPT_ALL();
+    twai_driver_install(&g_config, &t_config, &f_config);
+    twai_start();
+  }
 }
 
 /*
@@ -193,4 +236,10 @@ void loop()
 {
   listenToUsbSerialStream();
   listenToKayoSerialStream();
+
+  //  if (millis() > g_last_can_tx_time + 1000)
+  //  {
+  //    //sendConveyorWidthToCAN(123);
+  //    g_last_can_tx_time = millis();
+  //  }
 }

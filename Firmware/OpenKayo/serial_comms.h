@@ -29,7 +29,7 @@ void listenToUsbSerialStream()
 */
 void sendMessageToKayo(uint8_t message[8], bool suppress_ok_response, bool exact_match_required)
 {
-#if COMMS_DEBUGGING
+#if DEBUG_KAYO
   Serial.print("Sending:   ");
   printKayoMessage(message);
   Serial.print("Expecting: ");
@@ -38,7 +38,7 @@ void sendMessageToKayo(uint8_t message[8], bool suppress_ok_response, bool exact
 
   if (ENABLE_KAYO)
   {
-    for (uint8_t i = 0; i < 7; i++)
+    for (uint8_t i = 0; i < 8; i++)
     {
       Serial2.write(message[i]);
     }
@@ -92,14 +92,14 @@ void listenToKayoSerialStream(bool suppress_ok_response, bool exact_match_requir
     if (0xAA == g_kayo_recv_buffer[0] && 0x55 == g_kayo_recv_buffer[7])
     {
       // We do, so process it
-#if COMMS_DEBUGGING
+#if DEBUG_KAYO
       Serial.print("Received: ");
       printKayoMessage(g_kayo_recv_buffer);
 #endif
       // If the message is a position, decode it
       if ((0xA1 == g_kayo_recv_buffer[1]) || (0xA8 == g_kayo_recv_buffer[1]))
       {
-#if COMMS_DEBUGGING
+#if DEBUG_KAYO
         Serial.println("=== Decoding position message");
 #endif
         decodePositionMessage(g_kayo_recv_buffer);
@@ -133,7 +133,7 @@ void listenToKayoSerialStream(bool suppress_ok_response, bool exact_match_requir
       } else {
         g_matching_response = false;
         //Serial.println("ERR: Response from Kayo does not match expected value.");
-#if COMMS_DEBUGGING
+#if DEBUG_KAYO
         Serial.print("Expected: ");
         printKayoMessage(g_expected_response);
         Serial.print("Received: ");

@@ -18,12 +18,13 @@ String g_kayo_input_buffer = "";
 
 #define MCODE_RESET_CONV          20   // "M20"       Reset conveyor
 #define MCODE_ADJUST_CONV         21   // "M21 N93.4" Adjust conveyor to 93.4mm width + margin
-#define MCODE_INGEST_PCB_CONV     22   // "M22"       Ingest a PCB and clip it in position
+#define MCODE_INGEST_PCB_MANUAL   22   // "M22"       Load a PCB manually placed and clip it in position
 #define MCODE_EXIT_PCB_CONV       23   // "M23"       Unclip PCB and move it to the exit location
 #define MCODE_RUN_CONV            24   // "M24"       Start conveyor
 #define MCODE_STOP_CONV           25   // "M25"       Stop conveyor and drop pin
 #define MCODE_PIN_ENGAGE_CONV     26   // "M26"       Engages the stop pin
 #define MCODE_CLIP_PCB_CONV       27   // "M27"       Clip a PCB on the conveyor
+#define MCODE_INGEST_PCB_CONV     28   // "M28"       Load a PCB from upstream conveyor and clip it in position
 
 #define MCODE_LIGHTS_OFF          30   // "M30"       Turn off camera lights
 #define MCODE_FAST_LIGHT_ON       31   // "M31 S15"   Turn on precision camera light at 15% brightness
@@ -65,7 +66,7 @@ void processGCodeMessage()
   // Strip comments
   g_usb_input_buffer.remove(g_usb_input_buffer.indexOf(";"));
   g_usb_input_buffer.trim();
-#if COMMS_DEBUGGING
+#if DEBUG_KAYO
   Serial.print("GCODE: ");
   Serial.println(g_usb_input_buffer);
 #endif
@@ -81,6 +82,7 @@ void processGCodeMessage()
         valid_command_found = true;
         //Serial.println("Homing start");
         //Serial.println("ok");
+        sendHomeToCAN();
         cmdResetAndHome();
         g_homed = true;
         break;
@@ -202,6 +204,7 @@ void processGCodeMessage()
       {
         valid_command_found = true;
         float requested_width = parseGCodeParameter('N', NULL);
+        sendConveyorWidthToCAN(requested_width);
         cmdAdjustConveyorWidth(requested_width);
         break;
       }
@@ -241,6 +244,13 @@ void processGCodeMessage()
         break;
       }
 
+    case MCODE_INGEST_PCB_MANUAL:
+      {
+        valid_command_found = true;
+        cmdIngestPcbManual();
+        break;
+      }
+      
     case MCODE_INGEST_PCB_CONV:
       {
         valid_command_found = true;
