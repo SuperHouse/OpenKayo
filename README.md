@@ -116,11 +116,11 @@ move the head in X/Y, all Z axes will be immediately zeroed.
 | M26              | Engages the stop pin                                                                                 |
 | M27              | Clamp a PCB on the conveyor                                                                          |
 
-###Lights
+### Lights
 | Code              | Meaning                                                                                             |
 |-------------------|-----------------------------------------------------------------------------------------------------|
 | M30               | Turn off camera lights                                                                              |
-| M31 S*brightness* | Turn on fast camera light at specificed brightness %, eg: "M31 S15"                                 |
+| M31 S*brightness* | Turn on fast camera light at specified brightness %, eg: "M31 S15"                                 |
 | M32 S*brightness* | Turn on precision camera light at specified brightness %, eg: "M32 S46"                             |
 
 ### Status
@@ -129,15 +129,17 @@ move the head in X/Y, all Z axes will be immediately zeroed.
 | M114             | Report position                                                                                      |
 | M115             | Report firmware type and version                                                                     |
 
-###Feeders
+### Feeders
 | Code             | Meaning                                                                                              |
 |------------------|------------------------------------------------------------------------------------------------------|
 | M600 N*feeder*   | Open specified feeder, eg: "M600 N12"                                                                |
 | M601             | Close feeders (no need to specify)                                                                   |
 
 **Note:** The Kayo motion controller only ever allows a single feeder to be open 
-at a time, and there is no command to close a specific feeder. M601 closes 
-whatever is open.
+at a time. If you have one feeder open and then send an open command for a different 
+feeder, the first one will be closed automatically.
+
+There is no command to close a specific feeder. M601 closes whatever was last opened.
 
 ### Diagnostic
 | Code               | Meaning                                                                                            |
@@ -147,11 +149,13 @@ whatever is open.
 ## Camera Modifications
 
 I have been unable to connect the 5 factory bottom cameras (1 x precision 
-camera and a 4-way high-speed camera array) to OpenPnP. On my machines 
-I have unscrewed the 4-way camera array and tucked it away inside the 
-machine, and also removed the precision camera. I replaced that with an 
-ELP Mini 720p OV9712 USB industrial camera with a 6mm lens, using a 
-3D-printed camera mount and a lens spacer to change the focal length.
+camera and a 4-way high-speed camera array) to OpenPnP on either 
+Ubuntu or MacOS. You may have more success on Windows: please let me know!
+
+On my machines I have unscrewed the 4-way camera array and tucked it away 
+under the feeder manifold, and also removed the precision camera. I replaced 
+that with an ELP Mini 720p OV9712 USB industrial camera with a 6mm lens, 
+using a 3D-printed camera mount and a lens spacer to change the focal length.
 
 This particular camera is very commonly used for OpenPnP so it's a 
 well-known and well-supported device.
