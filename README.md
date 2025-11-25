@@ -1,9 +1,11 @@
 # OpenKayo Kayo-A4 GCode Adapter
 
 Connects to the serial interface of a Kayo-A4 pick-and-place
-machine, and provides a USB interface with a GCode interpreter that
-translates messages into the format necessary for the factory Kayo
-firmware. This allows Kayo machines to be controlled using [OpenPnP](https://openpnp.org/).
+machine, and provides a USB interface with an onboard GCode 
+interpreter that translates messages into the format necessary 
+for the Kayo's motion controller.
+
+This allows Kayo machines to be controlled using [OpenPnP](https://openpnp.org/).
 
 ![Kayo A4](Images/Kayo-A4.jpg "Kayo A4")
 
@@ -17,7 +19,7 @@ details.
 The hardware adapter portion of the project can minimally be built with an
 ESP8266-based dev board such as a Wemos D1 Mini and some cables.
 
-A dedicated ESP32-S3 hardware design is also provided, which includes
+A dedicated ESP32-S3 hardware design is provided, which includes
 additional features such as a CAN bus interface to integrate with other
 devices on the production line.
 
@@ -53,19 +55,24 @@ terminal, which includes signal GND, TX, and RX:
 
 ## Axis Configuration
 
-The protocol convertor uses the axes listed below. OpenPnP needs to be 
+The protocol converter uses the axes listed below. OpenPnP needs to be 
 configured to use these same axes.
 
  * X: horizontal left/right
  * Y: horizontal forward/back
- * Z: virtual vertical axis for top camera, which doesn't physically move
+ * Z: virtual vertical axis for top camera, which doesn't physically move vertically
  * A, B, C, D: rotational axes for nozzles 1-4
  * I, J, K, L: z (vertical) axes for nozzles 1-4
 
-Kayo "home" is in the top right corner, so the working area is negative 
-coordinates relative to that. That may sound confusing at first but it 
-works out quite nicely in practice. For example, a typical board origin 
-when clamped on the conveyor could be at something like "-155, -453".
+Kayo "home" is in the top right corner at coordinates "0,0", so the 
+working area is negative coordinates relative to that. That may sound 
+confusing at first but it works out quite nicely in practice. For example, 
+a typical board origin when clamped on the conveyor could be at something 
+like "-155, -453".
+
+Nozzles are at a 0 position when fully retracted (raised) and typically 
+descend to approximately -9.8mm to touch the surface of a clamped PCB or 
+feeder pickup location.
 
 ## Supported G-Codes
 
