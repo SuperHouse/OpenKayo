@@ -3,14 +3,21 @@
 Connects to the serial interface of a Kayo-A4 pick-and-place
 machine, and provides a USB interface with a GCode interpreter that
 translates messages into the format necessary for the factory Kayo
-firmware. This allows Kayo machines to be controlled using OpenPnP.
+firmware. This allows Kayo machines to be controlled using [OpenPnP](https://openpnp.org/).
 
 ![Kayo A4](Images/Kayo-A4.jpg "Kayo A4")
 
-The hardware portion of the project can minimally be built with an
-ESP32-based dev board such as a Wemos D1 Mini and some cables.
+## Hardware Requirements
 
-A dedicated hardware design is also provided, which includes
+You will need a computer running OpenPnP, with sufficient USB ports 
+to handle the connections to the controller, cameras, etc. This 
+is a normal OpenPnP requirement so check the OpenPnP docs for 
+details.
+
+The hardware adapter portion of the project can minimally be built with an
+ESP8266-based dev board such as a Wemos D1 Mini and some cables.
+
+A dedicated ESP32-S3 hardware design is also provided, which includes
 additional features such as a CAN bus interface to integrate with other
 devices on the production line.
 
@@ -18,11 +25,26 @@ devices on the production line.
 
 ![OpenKayo v1.1 interface board features](Images/OpenKayo-v1_1-features.jpeg "OpenKayo v1.1 interface board features")
 
+**Adapter Board Features**
+
+ * USB-C socket for connection to host computer running OpenPnP
+ * ESP32-S3 MCU
+ * 3-way 3.81mm screw socket for connection to Kayo serial cable
+ * Onboard USB hub with 2 spare ports exposed
+ * RGB LED for status display
+ * Connections for external RGB LED strip for traffic-light status display etc
+ * 128x32 OLED
+ * Piezo for alarms
+ * CAN bus interface with optional CAN termination
+ * Can be powered via USB if only a serial connection + USB is required
+ * Can be powered at 12V via screw terminals to pass power on to CAN bus
+ * Can be powered at 12V via CAN bus if another device on the bus is powered
+
 ## Serial Connection
 
-Kayo machines are supplied with a PC running their proprietary 
-control software running on Windows, which is connected to a motion 
-controller mounted inside the chassis using a serial connection. The
+Kayo machines are supplied with a Windows PC running their proprietary 
+control software, which is connected to a motion 
+controller mounted inside the chassis via a serial connection. The
 serial port is connected using a 3-way 3.81mm pitch pluggable screw 
 terminal, which includes signal GND, TX, and RX:
 
@@ -40,8 +62,10 @@ configured to use these same axes.
  * A, B, C, D: rotational axes for nozzles 1-4
  * I, J, K, L: z (vertical) axes for nozzles 1-4
 
-Kayo home is top right corner, so the working area is negative coordinates 
-relative to that.
+Kayo "home" is in the top right corner, so the working area is negative 
+coordinates relative to that. That may sound confusing at first but it 
+works out quite nicely in practice. For example, a typical board origin 
+when clamped on the conveyor could be at something like "-155, -453".
 
 ## Supported G-Codes
 
