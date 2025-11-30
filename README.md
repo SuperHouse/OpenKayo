@@ -71,8 +71,8 @@ a typical board origin when clamped on the conveyor could be at something
 like "-155, -453".
 
 Nozzles are at a 0 position when fully retracted (raised) and typically 
-descend to approximately -9.8mm to touch the surface of a clamped PCB or 
-feeder pickup location.
+descend to approximately -9.8mm to -10.1mm to touch the surface of a clamped 
+PCB or feeder pickup location.
 
 ## Supported G-Codes
 
@@ -82,8 +82,8 @@ feeder pickup location.
 |------------------|------------------------------------------------------------------------------------------------------|
 | G28              | Reset and home                                                                                       |
 | G0 X*pos* Y*pos* | Move X & Y to the defined absolute position in mm, eg: "G0 X-23.4 Y-18"                              |
-| G0 I*pos*        | Move specified nozzle vertically to absolute position in mm, eg: "G0 I-7.6" (I=n1, J=n2, K=n3, L=n4) |       
-| G0 A*pos*        | Rotate specificed nozzle to an absolute angle in degrees, eg: "G0 A48" (A=n1, B=n2, C=n3, D=n4)      |
+| G0 I*pos*        | Move specified nozzle vertically to absolute position in mm, eg: "G0 I-7.6" to send nozzle 1 to -7.6mm (I=n1, J=n2, K=n3, L=n4) |       
+| G0 A*pos*        | Rotate specified nozzle to an absolute angle in degrees, eg: "G0 A48" to send nozzle 1 to an angle of 48 degrees (A=n1, B=n2, C=n3, D=n4)      |
 
 **Note:** the Kayo motion controller has an interlock on X/Y movement with Z 
 axis displacement. You CANNOT move the machine in X or Y axis while holding 
@@ -92,7 +92,7 @@ nozzles whenever it gets an X/Y movement command.
 
 This means that you can't use advanced motion planning in OpenPnP, and you 
 also can't assume that you know the Z axis position of any nozzle. If you 
-move the head in X/Y, all Z axes will be immediately zeroed.
+move the head in X/Y, all Z axes will be immediately zeroed with no warning.
 
 ### Vac / Blow
 | Code             | Meaning                                                                                              |
@@ -148,6 +148,8 @@ There is no command to close a specific feeder. M601 closes whatever was last op
 
 ## Camera Modifications
 
+### Bottom Cameras
+
 I have been unable to connect the 5 factory bottom cameras (1 x precision 
 camera and a 4-way high-speed camera array) to OpenPnP on either 
 Ubuntu or MacOS. You may have more success on Windows: please let me know!
@@ -160,6 +162,35 @@ using a 3D-printed camera mount and a lens spacer to change the focal length.
 This particular camera is very commonly used for OpenPnP so it's a 
 well-known and well-supported device.
 
+**1. Remove light bracket and the original camera:**
+
+![Remove original camera](Images/ELP-Camera-1-remove-old.jpg "Remove original camera")
+
+**2. 3D-print mounting plate and lens spacer:**
+
+![3D printed parts](Images/ELP-Camera-2-3D-parts.jpg "3D printed parts")
+
+**3. Remove lens from ELP camera:**
+
+![Remove ELP lens](Images/ELP-Camera-3-remove-lens.jpg "Remove ELP lens")
+
+**4. Reattach lens with 6mm M2 bolts with spacer:**
+
+![Lens spacer](Images/ELP-Camera-4-lens-spacer.jpg "Lens spacer")
+
+**5. Attach mounting plate with M3 bolts:**
+
+![Attach mount](Images/ELP-Camera-5-mount.jpg "Attach mounting plate")
+
+**6. Pass cable through mounting plate and screw camera on with 2mm self tappers:**
+
+![Fitted camera](Images/ELP-Camera-6-fitted.jpg "Fitted camera")
+
+Finally, reinstall the light bracket and then do the usual focus and 
+camera calibration process in OpenPnP.
+
+
+### Top Camera
 The top camera has an analog output. I connected it to an analog-to-HDMI 
 converter, which then goes to a cheap HDMI-to-USB converter so that it 
 appears as a webcam under Linux and can be accessed by OpenPnP.
