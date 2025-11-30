@@ -191,9 +191,30 @@ camera calibration process in OpenPnP.
 
 
 ### Top Camera
+
 The top camera has an analog output. I connected it to an analog-to-HDMI 
 converter, which then goes to a cheap HDMI-to-USB converter so that it 
 appears as a webcam under Linux and can be accessed by OpenPnP.
+
+## Discard Tray
+
+You can use the original discard tray behind the PCB area, but with 
+the 4-camera array removed there is an ideal location for a discard 
+tray right behind the camera location. This allows a very short movement 
+to the tray if the vision pipeline rejects the parts.
+
+I have designed a discard tray holder that has a 1x2 Gridfinity mount 
+in the base, and holes to attach it to the T-slot front rail using 
+T-nuts and M3 bolts:
+
+![Discard tray holder](Images/Discard-Tray-Holder.jpg "Discard tray holder")
+
+You can use a regular 1x2 Gridfinity tray. I've included a design for 
+a 1x1 tray with the height set to match the mounting rail. OpenPnP 
+currently only supports a single discard location, but support for 
+multiple trays is in development:
+
+![Discard trays](Images/Discard-Trays.jpg "Discard trays")
 
 ## Kayo Protocol
 
