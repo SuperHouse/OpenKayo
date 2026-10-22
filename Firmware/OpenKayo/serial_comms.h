@@ -25,10 +25,23 @@ void listenToUsbSerialStream()
 
 
 /*
+  Send a message to the Kayo and wait for the expected response.
 
+  This does NOT send "ok" to the host: processGCodeMessage() sends exactly
+  one "ok" or "ERR:" per G-code line, so OpenPnP's confirmations stay in
+  step even when a command needs several Kayo messages.
+
+  Returns false if the Kayo didn't respond within g_kayo_timeout_ms, or if
+  an earlier step of the current command already failed (in which case
+  nothing is sent).
 */
-void sendMessageToKayo(uint8_t message[8], bool suppress_ok_response, bool exact_match_required)
+bool sendMessageToKayo(uint8_t message[8], bool exact_match_required)
 {
+  if (g_command_failed)
+  {
+    return false;
+  }
+
 #if DEBUG_KAYO
   Serial.print("Sending:   ");
   printKayoMessage(message);
@@ -38,6 +51,14 @@ void sendMessageToKayo(uint8_t message[8], bool suppress_ok_response, bool exact
 
   if (ENABLE_KAYO)
   {
+    // Discard anything left over from an earlier message, so a late reply
+    // can't be mistaken for the reply to this one
+    while (Serial2.available())
+    {
+      Serial2.read();
+    }
+    memset(g_kayo_recv_buffer, 0, sizeof(g_kayo_recv_buffer));
+
     for (uint8_t i = 0; i < 8; i++)
     {
       Serial2.write(message[i]);
@@ -53,11 +74,36 @@ void sendMessageToKayo(uint8_t message[8], bool suppress_ok_response, bool exact
 
     g_matching_response = false;
     delay(COMMAND_DELAY);
+    uint32_t send_time = millis();
     while (!g_matching_response)
     {
-      listenToKayoSerialStream(suppress_ok_response, exact_match_required);
+      listenToKayoSerialStream(exact_match_required);
+      if (millis() - send_time > g_kayo_timeout_ms)
+      {
+        clearExpectedResponse();
+        reportError("Kayo response timeout");
+        return false;
+      }
     }
   }
+  return true;
+}
+
+
+/*
+  Report a failure to the host and mark the current command as failed.
+  Only the first error for a command is reported, so OpenPnP gets exactly
+  one response per G-code line.
+*/
+void reportError(const char *error_message)
+{
+  if (g_command_failed)
+  {
+    return;
+  }
+  g_command_failed = true;
+  Serial.print("ERR: ");
+  Serial.println(error_message);
 }
 
 
@@ -75,7 +121,7 @@ void sendMessageToKayo(uint8_t message[8], bool suppress_ok_response, bool exact
   intermediate response, then finishes with a packet that is all zeros
   for position. We have to wait for *that* packet to know it's done.
 */
-void listenToKayoSerialStream(bool suppress_ok_response, bool exact_match_required)
+void listenToKayoSerialStream(bool exact_match_required)
 {
   while (Serial2.available())
   {
@@ -93,7 +139,8 @@ void listenToKayoSerialStream(bool suppress_ok_response, bool exact_match_requir
     {
       // We do, so process it
 #if DEBUG_KAYO
-      Serial.print("Received: ");
+      Serial.print(millis());
+      Serial.print(" Received: ");
       printKayoMessage(g_kayo_recv_buffer);
 #endif
       // If the message is a position, decode it
@@ -126,10 +173,6 @@ void listenToKayoSerialStream(bool suppress_ok_response, bool exact_match_requir
       {
         g_matching_response = true;
         clearExpectedResponse();
-        if (!suppress_ok_response)
-        {
-          Serial.println("ok");
-        }
       } else {
         g_matching_response = false;
         //Serial.println("ERR: Response from Kayo does not match expected value.");

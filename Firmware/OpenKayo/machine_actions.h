@@ -51,7 +51,7 @@ void decodePositionMessage(uint8_t message[])
   g_y_reported_position = current_y_position;
 }
 
-void cmdMoveXY(float x, float y, bool suppress_ok_response)
+void cmdMoveXY(float x, float y)
 {
 #if DEBUG_KAYO
   Serial.print(millis()); Serial.print("    ");
@@ -63,31 +63,32 @@ void cmdMoveXY(float x, float y, bool suppress_ok_response)
 #endif
   if (0.0 != g_nozzle_z_position[0])
   {
-    cmdMoveZ(1, 0, true);
+    cmdMoveZ(1, 0);
     //delay(200);
   }
   if (0.0 != g_nozzle_z_position[1])
   {
-    cmdMoveZ(2, 0, true);
+    cmdMoveZ(2, 0);
     //delay(100);
   }
   if (0.0 != g_nozzle_z_position[2])
   {
-    cmdMoveZ(3, 0, true);
+    cmdMoveZ(3, 0);
     //delay(100);
   }
   if (0.0 != g_nozzle_z_position[3])
   {
-    cmdMoveZ(4, 0, true);
+    cmdMoveZ(4, 0);
     //delay(100);
   }
 
 #if DEBUG_KAYO
   Serial.print(millis()); Serial.print("    ");
   Serial.print("Pos message1: ");
-#endif
   printKayoMessage(g_position_message);
-  if (NULL != x)
+#endif
+  // An axis that isn't part of the request is NAN, and keeps its previous target
+  if (!isnan(x))
   {
     g_x_position = x;
     float kayo_x_requested = -1 * x * KAYO_SCALE_FACTOR;
@@ -95,7 +96,7 @@ void cmdMoveXY(float x, float y, bool suppress_ok_response)
     g_position_message[1] = kayo_x_dest >> 8;
     g_position_message[2] = kayo_x_dest & 0xFF;
   }
-  if (NULL != y)
+  if (!isnan(y))
   {
     g_y_position = y;
     float kayo_y_requested = -1 * y * KAYO_SCALE_FACTOR;
@@ -140,7 +141,7 @@ void cmdMoveXY(float x, float y, bool suppress_ok_response)
   Serial.print("Pos message2: ");
   printKayoMessage(g_position_message);
 #endif
-  sendMessageToKayo(g_position_message, suppress_ok_response, false);
+  sendMessageToKayo(g_position_message, false);
 }
 
 
@@ -157,7 +158,7 @@ void cmdMoveXY(float x, float y, bool suppress_ok_response)
    Also, we forcibly retract all nozzles before X or Y moves, because
    the Kayo will refuse to move otherwise.
 */
-void cmdMoveZ(uint8_t nozzle, float z, bool suppress_ok_response)
+void cmdMoveZ(uint8_t nozzle, float z)
 {
 #if DEBUG_KAYO
   Serial.print(millis());
@@ -214,7 +215,7 @@ void cmdMoveZ(uint8_t nozzle, float z, bool suppress_ok_response)
   g_expected_response[6] = nozzle;
   g_expected_response[7] = 0x55;
 
-  sendMessageToKayo(message, suppress_ok_response);
+  sendMessageToKayo(message);
 #if DEBUG_KAYO
   Serial.println("z sent");
 #endif
@@ -424,7 +425,7 @@ void cmdAdjustConveyorWidth(float width_requested)
     //memcpy(g_expected_response, message, sizeof(g_expected_response));
     //swallowDecodeUntilMessage(g_expected_response);
   } else {
-    Serial.println("ERR: No conveyor width specified");
+    reportError("No conveyor width specified");
   }
 }
 
@@ -919,7 +920,7 @@ void cmdSetVacBlow(uint16_t command_code, uint8_t nozzle_id)
     {
       message[6] = nozzle_id;
     } else {
-      Serial.println("ERR: No valid nozzle ID specified");
+      reportError("No valid nozzle ID specified");
       return;
     }
   }
@@ -966,12 +967,12 @@ void cmdLightOn(uint8_t light, uint8_t brightness)
 {
   if (light != 1 && light != 2)
   {
-    Serial.println("ERR: No valid light specified (1=high-speed, 2=precision)");
+    reportError("No valid light specified (1=high-speed, 2=precision)");
     return;
   }
   if (brightness < 0 || brightness > 100)
   {
-    Serial.println("ERR: No valid brightness specified (0-100)");
+    reportError("No valid brightness specified (0-100)");
     return;
   }
 
@@ -1036,7 +1037,7 @@ void cmdOpenFeeder(uint8_t feeder_id)
 #endif
     //delay(200);
   } else {
-    Serial.println("ERR: No feeder ID specified");
+    reportError("No feeder ID specified");
   }
 }
 

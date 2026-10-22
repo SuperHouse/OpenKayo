@@ -236,7 +236,26 @@ This can be imported into KiCAD, or opened natively using Fusion360.
 ## Firmware
 
 The "Firmware" directory contains example firmware as an Arduino
-project.
+project. The full Arduino IDE board settings are in the header comment
+of `OpenKayo.ino`.
+
+**Important:** set Tools -> USB Mode to "USB-OTG (TinyUSB)", not
+"Hardware CDC and JTAG". In Hardware CDC mode (tested with esp32 core
+2.0.7), a reply whose last USB packet is exactly 64 bytes is held by
+Linux hosts until the board sends more data. OpenPnP then times out
+waiting for "ok", and its command confirmations get out of step.
+
+The firmware sends exactly one response for each G-code line: "ok" when
+the command has finished, or a single line starting with "ERR:" if it
+failed. A command fails if the Kayo doesn't reply within the timeouts set
+in `config.h`: 5 seconds for most commands, and 60 seconds for homing and
+conveyor commands. In OpenPnP's GcodeDriver settings:
+
+ * "Command Error Regex" should match `^ERR:.*`, so that a failed command
+   stops the job straight away.
+ * "Command Timeout [ms]" must be longer than the firmware's longest
+   timeout, for example 65000. If OpenPnP gives up first, its command
+   confirmations get out of step.
 
 
 ## Credits

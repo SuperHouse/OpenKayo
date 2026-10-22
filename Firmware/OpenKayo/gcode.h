@@ -63,6 +63,11 @@ void processGCodeMessage()
   uint8_t valid_command_found = false;
   int16_t  command_code = -1;
 
+  // Each command starts clean, with the normal Kayo response timeout.
+  // Homing and conveyor commands set a longer timeout below.
+  g_command_failed  = false;
+  g_kayo_timeout_ms = KAYO_RESPONSE_TIMEOUT;
+
   // Strip comments
   g_usb_input_buffer.remove(g_usb_input_buffer.indexOf(";"));
   g_usb_input_buffer.trim();
@@ -80,11 +85,10 @@ void processGCodeMessage()
     case GCODE_HOME:
       {
         valid_command_found = true;
-        //Serial.println("Homing start");
-        //Serial.println("ok");
+        g_kayo_timeout_ms = KAYO_LONG_TIMEOUT;
         sendHomeToCAN();
         cmdResetAndHome();
-        g_homed = true;
+        g_homed = !g_command_failed;
         break;
       }
 
@@ -95,26 +99,21 @@ void processGCodeMessage()
           // Don't move unless we've already been homed.
           if (false == g_homed)
           {
-            Serial.println("ERR: home the machine first using command 'G28'");
+            reportError("home the machine first using command 'G28'");
             break;
           }
         }
 
-        float requested_x = parseGCodeParameter('X', NULL);
-        float requested_y = parseGCodeParameter('Y', NULL);
+        // NAN means "not in this command", so that X0 and Y0 are still valid targets
+        float requested_x = parseGCodeParameter('X', NAN);
+        float requested_y = parseGCodeParameter('Y', NAN);
         float requested_i = parseGCodeParameter('I', -9999);  // Nozzle 1 Z axis
         float requested_j = parseGCodeParameter('J', -9999);  // Nozzle 2 Z axis
         float requested_k = parseGCodeParameter('K', -9999);  // Nozzle 3 Z axis
         float requested_l = parseGCodeParameter('L', -9999);  // Nozzle 4 Z axis
 
-        if (requested_x || requested_y) {
-          // Check if Z is also being set:
-          if (-9999 != requested_i || -9999 != requested_j || -9999 != requested_k || -9999 != requested_l)
-          {
-            cmdMoveXY(requested_x, requested_y, true);  // Suppress "ok" response
-          } else {
-            cmdMoveXY(requested_x, requested_y);
-          }
+        if (!isnan(requested_x) || !isnan(requested_y)) {
+          cmdMoveXY(requested_x, requested_y);
         }
 
         // Move any Z axis that's part of the request
@@ -156,6 +155,13 @@ void processGCodeMessage()
   // Extract the command, default -1 if not found
   command_code = parseGCodeParameter('M', -1);
 
+  // Homing the conveyor, changing its width and moving boards all take longer
+  // than normal commands
+  if (command_code >= MCODE_RESET_CONV && command_code <= MCODE_INGEST_PCB_CONV)
+  {
+    g_kayo_timeout_ms = KAYO_LONG_TIMEOUT;
+  }
+
   switch (command_code)
   {
     case MCODE_SPECIAL_Z:
@@ -182,7 +188,6 @@ void processGCodeMessage()
         Serial.print(" MACHINE_TYPE:Kayo-A4");
         Serial.print(" UUID:");
         Serial.println(g_device_id, HEX);
-        Serial.println("ok");
         break;
       }
 
@@ -312,7 +317,15 @@ void processGCodeMessage()
 
   if (!valid_command_found)
   {
-    Serial.println("ERR: Unknown or empty command ignored");
+    reportError("Unknown or empty command ignored");
+  }
+
+  // Exactly one response per command: "ok" here, or the "ERR:" line that
+  // reportError() already sent. Any extra "ok" would confirm OpenPnP's next
+  // command before it has been carried out.
+  if (!g_command_failed)
+  {
+    Serial.println("ok");
   }
 }
 

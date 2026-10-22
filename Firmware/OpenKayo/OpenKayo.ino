@@ -77,6 +77,15 @@
     - Partition Scheme: Minimal SPIFFS (1.9MB APP with OTA/190KB SPIFFS)
     - Core Debug Level: None
     - PSRAM:            Disabled
+    - USB Mode:         USB-OTG (TinyUSB)
+    - USB CDC On Boot:  Enabled
+    - Upload Mode:      USB-OTG CDC (TinyUSB)
+
+  Do NOT use USB Mode "Hardware CDC and JTAG". With esp32 core 2.0.7 it
+  doesn't end a transfer whose last USB packet is exactly 64 bytes, and a
+  Linux host then holds that reply until the board sends more data. OpenPnP
+  times out waiting for "ok", and its confirmations get out of step with the
+  commands. macOS hosts don't show the problem.
 
   To do:
     - Fix interaction between XY and Z axis movements.
@@ -84,7 +93,7 @@
     - Make received message parser resilient to missed characters.
     - Figure out why machines have different microstep counts on Z axis.
 */
-#define VERSION "0.3-20230721"
+#define VERSION "0.3-20261022-stall-fix"
 
 
 /*--------------------------- Configuration ---------------------------------*/
@@ -108,6 +117,8 @@ float    g_nozzle_z_position[4]  = {0.0, 0.0, 0.0, 0.0};
 uint8_t  g_matching_response     = false;
 float    g_x_reported_position   = 0.0;
 float    g_y_reported_position   = 0.0;
+uint8_t  g_command_failed        = false;  // Set when any step of the current G-code command fails
+uint32_t g_kayo_timeout_ms       = KAYO_RESPONSE_TIMEOUT;  // Set per command before it's processed
 
 // g_position_message is maintained as a global, populated with the latest requested
 // position values. This allows persistence of values that haven't been requested in
@@ -127,11 +138,12 @@ uint32_t g_last_can_tx_time      = 0;      // ms when last message was sent
 
 
 /*--------------------------- Function Signatures ---------------------------*/
-void sendMessageToKayo(uint8_t message[8], bool suppress_ok_response = false, bool exact_response_required = false);
+bool sendMessageToKayo(uint8_t message[8], bool exact_match_required = false);
+void reportError(const char *error_message);
 void decodePositionMessage(uint8_t message[]);
 void cmdResetAndHome();
-void cmdMoveXY(float x, float y, bool suppress_ok_response = false);
-void cmdMoveZ(uint8_t n, float z, bool suppress_ok_response = false);
+void cmdMoveXY(float x, float y);
+void cmdMoveZ(uint8_t n, float z);
 void cmdRotateNozzle(uint8_t n, float a);
 
 void cmdSetVacBlow(uint16_t command_code, uint8_t nozzle_id);
@@ -157,7 +169,7 @@ void cmdOpenFeeder(uint8_t feeder_id);
 void cmdCloseFeeders();
 
 void printKayoMessage(uint8_t message[]);
-void listenToKayoSerialStream(bool suppress_ok_response = false, bool exact_match_required = false);
+void listenToKayoSerialStream(bool exact_match_required = false);
 void clearExpectedResponse();
 //void addMessageToQueue(uint8_t message[], uint8_t expected_response[]);
 

@@ -31,10 +31,12 @@
 #define  KAYO_Z_STEPS_PER_MM        110   // Machine 1
 //#define  KAYO_Z_STEPS_PER_MM        220  // Machine 2
 #define  COMMAND_DELAY                0   // ms delay after each command
+#define  KAYO_RESPONSE_TIMEOUT     5000   // ms to wait for a Kayo reply. Keep below OpenPnP's command timeout.
+#define  KAYO_LONG_TIMEOUT        60000   // ms to wait for a Kayo reply to homing and conveyor commands
 
 /* Debugging */
 #define  DEBUG_CAN               false
-#define  DEBUG_KAYO              true   // Report debug messages relating to comms with the Kayo
+#define  DEBUG_KAYO              false  // Report debug messages relating to comms with the Kayo
 
 /*
       self.ROTATION_SCALE_FACTOR = 3200.0 / 360.0    # 3200 steps / 360 degrees
