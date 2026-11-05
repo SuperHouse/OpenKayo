@@ -121,84 +121,53 @@ reported via M115 for OpenPnP autodiscovery.
   may be an intermediate position report rather than "move complete". This
   hasn't been verified.
 
-## Current work: OpenPnP stall fix (started 2026-10-22)
+## Resolved: OpenPnP stall fix (Oct 2026)
 
-**Status:** branch `fix/usb-stall-single-ok`, committed by the user, not
-yet merged into `main`. The firmware (`VERSION "0.3-20261022-stall-fix"`)
-is flashed on the board connected to the machine. **Next step:** analyse
-the TRACE-level OpenPnP log from the next production job. If it checks
-out, merge the branch, after asking the user first.
+Merged into `main` on 2026-10-23 (`VERSION "0.3-20261022-stall-fix"`,
+commit 83c86fc).
 
-**Symptoms before the fix:**
-- About 2% of feeder commands stalled for OpenPnP's full 8 s command
-  timeout, nearly all of them M601 straight after the nozzle came up from a
-  pick. There were 47 stalls in about 2 h on 20 Oct and 43 on 22 Oct.
-- A "stuck" state: XY moves returned "ok" in about 55 ms but the head
-  didn't move, while Z and the lights still worked. Recovery meant stopping
-  the job, unloading the board, G28, M21 and reloading. There were 6
-  episodes on 22 Oct. Each started on the first XY move after a pick from
-  feeder N33 (`G0 X-187.21 Y-13.6`, then `G0 I-11.3`, the deepest pick).
-  It never happened on the first N33 pick after homing, and only after at
-  least 3 stalls since the last home.
+**Symptoms before the fix:** about 2% of feeder commands (nearly all M601
+after a pick) stalled for OpenPnP's full 8 s timeout. There was also a
+"stuck" state: XY moves returned "ok" in about 55 ms but the head didn't
+move. Each episode started on the first XY move after a pick from feeder
+N33 (`G0 I-11.3`, the deepest pick), and only after 3 or more stalls
+since the last home.
 
-**Root causes found:**
-1. USB. With core 2.0.7 in "Hardware CDC and JTAG" mode, a Linux host
-   holds a reply whose last USB packet is exactly 64 bytes (Linux cdc-acm
-   appears to read in 128-byte chunks). With debug on, M601's reply tail
-   came to exactly 64 bytes. `usb64-test.py` on kayo1 showed 64 B stalled
-   15/20 and 192 B 6/20, with every other size 0/20. TinyUSB gave 0 stalls
-   at every size. macOS never shows the problem.
-2. Extra "ok"s. The old firmware sent two "ok"s for every G0 with XY and
-   rotation, and ten for M22. Each extra "ok" confirmed OpenPnP's next
-   command before it had run, so OpenPnP's idea of "move finished" ran
-   early.
+**Root causes:**
+1. USB: "Hardware CDC and JTAG" on core 2.0.7 holds replies whose last
+   USB packet is exactly 64 bytes when the host is Linux. Fixed by building
+   with USB-OTG (TinyUSB). `usb64-test.py` reproduces it.
+2. Extra "ok"s (two per G0 with XY and rotation, ten for M22) made OpenPnP
+   treat moves as finished early. A side effect was that vision photos were
+   taken while the head was still moving.
 
-The suspected link to the stuck state is that OpenPnP ran ahead of the
-firmware after a stall. **This is not proven**, and confirming it is the
-point of the next job log.
+**Verification:** the TRACE log of the 23 Oct job (3 full boards, 7,751
+commands) had one "ok" per send, in order, with no `ERR:` lines, no
+stalls, and no stuck runs. Feeder M-codes took a median of 3 ms. Vision
+photos are now taken while the part is stationary.
 
-**Verified on the machine with the fix:**
-- One "ok" per command.
-- `pick-loop-test.py` stalls: 0.
-- `G0 X0 Y0` goes home.
-- `G0 Y-50` keeps X.
-
-**OpenPnP settings:** GcodeDriver Command Timeout must be **65000 ms**,
-above the firmware's 60 s `KAYO_LONG_TIMEOUT`. There are no per-actuator
-timeouts. Command Error Regex is `^ERR:.*`, already set. OpenPnP runs on
-host `kayo1` (Linux, port `/dev/ttyACM0`). The user copies its logs into
-the repo for analysis.
-
-**How to analyse the next log.** Parse `GcodeDriver DEBUG: ... >> CMD,
-timeout` (sent), `ReaderThread TRACE: ... << line` (from the firmware) and
-`GcodeDriver TRACE: ... confirmed CMD`. With `DEBUG_KAYO` off, the firmware
-sends only `ok` / `ERR: ...` lines, with no `GCODE:` echo. Check these:
-1. The number of `>>` sends equals the number of `<< ok` plus `<< ERR`
-   lines. Each `confirmed X` should come after its own `>> X`, and not 1 ms
-   after a later send.
-2. There are no stalls: no send-to-confirm gap of 5 s or more, except G28
-   and M20–M28.
-3. Every `ERR:` line is explained. "Kayo response timeout" is new
-   information: the Kayo itself didn't reply. Note which command it was and
-   the commands before it.
-4. There are no stuck runs: no 5 or more consecutive `G0 X/Y` moves
-   confirmed in under about 70 ms. Normal moves take 250–800 ms, and the
-   move from N33 to the camera takes about 785 ms. Also look for
-   unexpected G28 recoveries.
-5. G28 and the conveyor commands finish within 60 s. M23 took up to about
-   26 s before.
-
-**Merge criteria:** a full production run (several boards) with checks 1–4
-clean. Then merge `fix/usb-stall-single-ok` into `main`.
-
-**If the stuck state still happens:** read the TRACE lines around the first
-fast XY move to see what the Kayo replied. Next, try a shallower pick
-depth for N33, to test whether the deep pick makes the Kayo think a
-nozzle is still down. Also consider whether the XY "ok" comes too early:
-the expected reply `AA A1 00 00 00 00 00 55` matches *any* `A1` reply,
+**Still open:** that job didn't use N33 or the −11.3 mm pick, so the exact
+stuck-state trigger wasn't exercised. Zero stalls means the suspected
+precondition (OpenPnP running ahead after a stall) can't occur, but this
+isn't proven. If the stuck state comes back, read the TRACE lines around
+the first fast XY move and try a shallower N33 pick. Also consider that
+the XY expected reply `AA A1 00 00 00 00 00 55` matches *any* `A1` reply,
 which may be an intermediate position report.
 
-**Follow-ups, separate from this branch:**
+**Log analysis method** (if needed again): parse `GcodeDriver DEBUG: ...
+>> CMD, timeout`, `ReaderThread TRACE: ... << line` and `GcodeDriver TRACE:
+... confirmed CMD`. Check sends equal `ok` + `ERR` lines, confirms come in
+order, no gap of 5 s or more (except G28, M20–M28), and no run of 5 or
+more `G0 X/Y` moves confirmed in under about 70 ms. Fiducial-locator nudges
+of under 2 mm can legitimately confirm in under 50 ms.
+
+**OpenPnP settings:** GcodeDriver Command Timeout must be **65000 ms**,
+above the firmware's 60 s `KAYO_LONG_TIMEOUT`. Command Error Regex is
+`^ERR:.*`. OpenPnP runs on host `kayo1` (Linux, `/dev/ttyACM0`). The user
+copies its logs into the repo for analysis.
+
+## Follow-ups
+
 - README: the conveyor table says M2 for reset conveyor, but it's M20. M28
   is undocumented.
 - `cmdRotateNozzle` sends a Kayo message even when the angle doesn't
